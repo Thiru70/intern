@@ -1,0 +1,75 @@
+from flask import Flask, render_template, request, redirect, url_for
+from flask_mysqldb import MySQL
+from datetime import datetime
+
+app = Flask(__name__)
+
+# MySQL Configuration
+app.config['MYSQL_HOST'] = 'localhost'
+app.config['MYSQL_USER'] = 'root'  
+app.config['MYSQL_PASSWORD'] = 'tamil_2005'  
+app.config['MYSQL_DB'] = 'parking_db'
+
+mysql = MySQL(app)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/parking')
+def parking():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM parking")
+    records = cur.fetchall()
+    return render_template('parking.html', records=records)
+
+# Add new parking record (Create)
+@app.route('/add', methods=['GET', 'POST'])
+def add_parking():
+    if request.method == 'POST':
+        spot_name = request.form['spot_name']
+        vehicle_name = request.form['vehicle_name']
+        reg_no = request.form['reg_no']
+        owner_name = request.form['owner_name']
+        entry_time = datetime.now()
+        status = 'Parked'
+
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO parking(spot_name,vehicle_name, reg_no, owner_name, entry_time, status) VALUES(%s, %s, %s, %s, %s, %s)",
+                    (spot_name,vehicle_name,reg_no, owner_name, entry_time, status))
+        mysql.connection.commit()
+        cur.close()
+        return redirect(url_for('parking'))
+    return render_template('add_parking.html')
+
+# Update parking record (Update)
+@app.route('/update/<int:id>', methods=['GET', 'POST'])
+def update_parking(id):
+    cur = mysql.connection.cursor()
+    if request.method == 'POST':
+        spot_name = request.form['spot_name']
+        vehicle_name = request.form['vehicle_name']
+        reg_no = request.form['reg_no']
+        owner_name = request.form['owner_name']
+        exit_time = datetime.now()
+        status = 'Departed'
+
+        cur.execute("UPDATE parking SET spot_name=%s,vehicle_name=%s,reg_no=%s, owner_name=%s, exit_time=%s, status=%s WHERE id=%s",
+                    (spot_name,vehicle_name,reg_no, owner_name, exit_time, status, id))
+        mysql.connection.commit()
+        return redirect(url_for('parking'))
+    
+    cur.execute("SELECT * FROM parking WHERE id=%s", (id,))
+    record = cur.fetchone()
+    return render_template('update_parking.html', record=record)
+
+# Delete parking record (Delete)
+@app.route('/delete/<int:id>', methods=['GET'])
+def delete_parking(id):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM parking WHERE id=%s", (id,))
+    mysql.connection.commit()
+    return redirect(url_for('parking'))
+
+if __name__ == '__main__':
+    app.run(debug=True)
